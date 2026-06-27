@@ -1,21 +1,57 @@
 package main
 
 import (
+	"fmt"
+	"go-e2e/controller"
+	"go-e2e/db"
+	"go-e2e/handler"
 	"log"
-	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+
 	log.Println("Starting server")
+
 	router := gin.Default()
+	router.Use(LoggerMiddleware())
 
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "up and running",
-		})
-	})
+	// Initialize DB
+	dbConn := db.ConnectDB()
+	defer dbConn.Close()
 
-	router.Run(":8080") // Listen on port 8080
+	// Initialize Controllers
+	userController := controller.NewUserController(dbConn)
+
+	// Initialize Handler
+	h := handler.NewHandler(userController)
+
+	// Register all routes
+	h.RegisterRoutes(router)
+
+	// Start server
+	router.Run(":8080")
+}
+
+func LoggerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Before request
+		start := time.Now()
+		path := c.Request.URL.Path
+
+		// Process request
+		c.Next()
+
+		// After request
+		duration := time.Since(start)
+		fmt.Printf("[%s] %s %s in %v\n",
+			c.Request.Method,
+			path,
+			strconv.Itoa(c.Writer.Status()),
+			duration,
+		)
+	}
 }
