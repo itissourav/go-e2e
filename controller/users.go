@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"go-e2e/db"
 	"go-e2e/models.go"
+	"go-e2e/utils"
+	"log"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
@@ -104,4 +106,73 @@ func (u *UserController) ListUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"users": users,
 	})
+}
+
+func (u *UserController) Login(c *gin.Context) {
+
+	var req models.LoginRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request body",
+		})
+		return
+	}
+
+	if req.Email == "" || req.Password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Email and Password are required",
+		})
+		return
+	}
+	log.Println(req, req.Email)
+
+	user, err := db.GetUserByEmail(u.DB, req.Email)
+	// log.Println(user.Email)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": err,
+		})
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword(
+		[]byte(user.PasswordHash),
+		[]byte(req.Password),
+	)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Invalid email or password",
+		})
+		return
+	}
+
+	jwtToken, err := utils.GenerateJWT(user.Id, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to generate token",
+		})
+		return
+	}
+
+	refreshToken, err := utils.GenerateRefreshToken(user.Id, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to generate refresh token",
+		})
+		return
+	}
+
+	resp := models.LoginResponse{
+		Id:           user.Id,
+		Firstname:    user.Firstname,
+		Lastname:     user.Lastname,
+		Email:        user.Email,
+		JwtToken:     jwtToken,
+		RefreshToken: refreshToken,
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
