@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go-e2e/config"
 	"go-e2e/controller"
 	"go-e2e/db"
 	"go-e2e/handler"
@@ -15,6 +16,7 @@ import (
 func main() {
 
 	log.Println("Starting server")
+	config.LoadEnv()
 
 	router := gin.Default()
 	router.Use(LoggerMiddleware())

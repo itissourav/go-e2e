@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"go-e2e/models.go"
+	"log"
 )
 
 func ListUsers(db *sql.DB) ([]models.User, error) {
@@ -50,9 +51,10 @@ func CreateUser(db *sql.DB, user models.SignupReq) error {
 			first_name,
 			last_name,
 			email,
-			password
+			password,
+			is_active
 		)
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2, $3, $4, true)
 	`
 
 	_, err := db.Exec(
@@ -81,4 +83,34 @@ func UserExists(db *sql.DB, email string) (bool, error) {
 	err := db.QueryRow(query, email).Scan(&exists)
 
 	return exists, err
+}
+
+func GetUserByEmail(db *sql.DB, email string) (*models.User, error) {
+
+	query := `
+		SELECT id,
+		       first_name,
+		       last_name,
+		       email,
+		       password
+		FROM users
+		WHERE email = $1
+	`
+
+	var user models.User
+
+	err := db.QueryRow(query, email).Scan(
+		&user.Id,
+		&user.Firstname,
+		&user.Lastname,
+		&user.Email,
+		&user.PasswordHash,
+	)
+
+	if err != nil {
+		log.Println(err, email)
+		return nil, err
+	}
+
+	return &user, nil
 }

@@ -26,6 +26,8 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	router.POST("/user", h.UserController.SignUp)
 
 	router.GET("/users", h.UserController.ListUsers)
+
+	router.POST("/login", h.UserController.Login)
 }
 
 func (h *Handler) Health(c *gin.Context) {
