@@ -1,26 +1,30 @@
-# Start from the official Go image
-FROM golang:1.21-alpine
+# Build stage
+FROM golang:1.21-alpine AS builder
 
-# Set environment variables
-ENV GO111MODULE=on \
-    CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=amd64
-
-# Create app directory
 WORKDIR /app
 
-# Copy go mod and sum files
-COPY go.mod ./
+# Copy dependency files
+COPY go.mod go.sum ./
 
 # Download dependencies
 RUN go mod download
 
-# Copy the source code
+# Copy source code
 COPY . .
 
-# Build the application
+# Build binary
 RUN go build -o main .
 
-# Command to run the executable
+# Runtime stage
+FROM alpine:latest
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/main .
+
+# Expose application port
+EXPOSE 8080
+
+# Run application
 CMD ["./main"]

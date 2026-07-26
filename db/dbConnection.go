@@ -10,7 +10,6 @@ import (
 )
 
 func ConnectDB() *sql.DB {
-	// connStr := "host=localhost port=5432 user=postgres password=109798 dbname=postgres sslmode=disable"
 	connStr := os.Getenv("ConnStr")
 	if connStr == "" {
 		log.Fatal("Db creds missing")
