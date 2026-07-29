@@ -1,6 +1,14 @@
 @echo off
+setlocal
 
-set DB_URL=postgres://postgres:109798@localhost:5432/postgres?sslmode=disable
+:: Load environment variables from local.env
+for /f "usebackq tokens=1,* delims==" %%A in ("local.env") do (
+    if not "%%A"=="" if not "%%A:~0,1%%"=="#" (
+        set "%%A=%%B"
+    )
+)
+
+set DB_URL=%MIGRATE_DB_URL%
 
 if "%1"=="up" (
     migrate -path migrations -database "%DB_URL%" up
@@ -20,7 +28,6 @@ if "%1"=="down-all" (
 if "%1"=="create" (
     if "%2"=="" (
         echo Please provide migration name
-        echo Example: migrate.bat create create_users_table
         goto end
     )
     migrate create -ext sql -dir migrations -seq %2

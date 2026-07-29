@@ -1,4 +1,7 @@
-DB_URL=postgres://postgres:109798@localhost:5432/postgres?sslmode=disable
+include local.env
+export
+
+DB_URL := $(MIGRATE_DB_URL)
 
 migrate-up:
 	migrate -path migrations -database "$(DB_URL)" up
