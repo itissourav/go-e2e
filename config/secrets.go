@@ -40,6 +40,8 @@ func LoadSecrets() error {
 		return fmt.Errorf("unable to read secret: %w", err)
 	}
 
+	log.Println("Raw Secret:", aws.ToString(result.SecretString))
+
 	var secret Secrets
 
 	err = json.Unmarshal([]byte(*result.SecretString), &secret)
