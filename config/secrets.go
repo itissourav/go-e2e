@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -45,12 +46,14 @@ func LoadSecrets() error {
 	if err != nil {
 		return fmt.Errorf("unable to parse secret: %w", err)
 	}
+	log.Println(secret.ConnStr, "secret")
 
 	// Populate environment variables
 	os.Setenv("ConnStr", secret.ConnStr)
 	os.Setenv("JWT_SECRET", secret.JWTSecret)
 	os.Setenv("JWT_EXPIRY_HOURS", secret.JWTExpiryHours)
 	os.Setenv("REFRESH_TOKEN_EXPIRY_HOURS", secret.RefreshTokenExpiryHours)
+	log.Println("Env ConnStr:", os.Getenv("ConnStr"))
 
 	return nil
 }

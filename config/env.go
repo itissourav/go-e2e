@@ -9,6 +9,7 @@ import (
 
 func LoadEnv() {
 	env := os.Getenv("APP_ENV")
+	log.Println(env, "env-------")
 
 	switch env {
 	case "prod":

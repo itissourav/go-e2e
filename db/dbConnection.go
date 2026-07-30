@@ -11,6 +11,7 @@ import (
 
 func ConnectDB() *sql.DB {
 	connStr := os.Getenv("ConnStr")
+	log.Println("Secret ConnStr:", connStr)
 	if connStr == "" {
 		log.Fatal("Db creds missing")
 	}
