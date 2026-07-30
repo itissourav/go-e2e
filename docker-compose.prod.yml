@@ -1,0 +1,15 @@
+version: '3.9'
+
+services:
+  app:
+    image: go-e2e-app:latest
+    container_name: go-e2e-app
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      APP_ENV: prod
+      AWS_REGION: ap-south-1
+
+    restart: unless-stopped

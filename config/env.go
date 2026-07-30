@@ -2,13 +2,24 @@ package config
 
 import (
 	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 )
 
 func LoadEnv() {
-	err := godotenv.Load("local.env")
-	if err != nil {
-		log.Println(".env file not found")
+	env := os.Getenv("APP_ENV")
+
+	switch env {
+	case "prod":
+		err := LoadSecrets()
+		if err != nil {
+			log.Fatalf("failed to load secrets: %v", err)
+		}
+	default:
+		err := godotenv.Load("local.env")
+		if err != nil {
+			log.Println("local.env file not found")
+		}
 	}
 }
