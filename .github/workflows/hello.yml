@@ -1,4 +1,4 @@
-name: Explore GitHub Runner
+name: Build Docker Image
 
 on:
   push:
@@ -6,74 +6,31 @@ on:
       - main
 
 jobs:
-  explore-runner:
-    name: Explore GitHub Hosted Runner
+  docker-build:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1 - Before checkout
-      - name: Before Checkout
-        run: |
-          echo "========== BEFORE CHECKOUT =========="
-          pwd
-          ls -la
-
-      # Step 2 - Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 3 - After checkout
-      - name: After Checkout
+      - name: Show Repository
         run: |
-          echo "========== AFTER CHECKOUT =========="
           pwd
           ls -la
-          echo ""
-          echo "Repository Structure:"
-          find . -maxdepth 2
 
-      # Step 4 - Git Information
-      - name: Show Git Information
+      - name: Verify Docker
         run: |
-          echo "========== GIT =========="
-          git status
-          echo ""
-          git branch
-          echo ""
-          git log --oneline -5
+          docker --version
+          docker info
 
-      # Step 5 - Explore Runner
-      - name: Explore Runner Environment
+      - name: Build Docker Image
         run: |
-          echo "========== SYSTEM =========="
-          whoami
-          hostname
-          pwd
+          docker build \
+            -t go-e2e:${{ github.sha }} \
+            .
 
-          echo ""
-          echo "========== SOFTWARE =========="
-          go version || true
-          docker --version || true
-          git --version
-          python3 --version || true
-          node --version || true
-          java -version || true
+      - name: List Docker Images
+        run: docker images
 
-      # Step 6 - GitHub Context Variables
-      - name: GitHub Context
-        run: |
-          echo "========== GITHUB CONTEXT =========="
-          echo "Repository  : ${{ github.repository }}"
-          echo "Branch      : ${{ github.ref_name }}"
-          echo "Commit SHA  : ${{ github.sha }}"
-          echo "Actor       : ${{ github.actor }}"
-          echo "Event       : ${{ github.event_name }}"
-          echo "Workspace   : ${{ github.workspace }}"
-          echo "Run Number  : ${{ github.run_number }}"
-          echo "Run ID      : ${{ github.run_id }}"
-
-      # Step 7 - Environment Variables
-      - name: Show Environment Variables
-        run: |
-          echo "========== ENVIRONMENT VARIABLES =========="
-          printenv | sort
+      - name: Inspect Docker Image
+        run: docker image inspect go-e2e:${{ github.sha }}
