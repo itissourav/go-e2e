@@ -1,50 +1,83 @@
-name: Build Docker Image
+name: Build and Push Docker Image
 
 on:
   push:
     branches:
       - main
 
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  ECR_REPOSITORY: go-e2e
+  IMAGE_TAG: ${{ github.sha }}
+
 jobs:
   docker-build:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # Configure AWS Credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-          
+      # Verify AWS Identity
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
-
+      # Verify ECR Repository
       - name: List ECR Repositories
         run: aws ecr describe-repositories
 
-      - name: Show Repository
-        run: |
-          pwd
-          ls -la
+      # Login Docker to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
+      # Verify Docker Installation
       - name: Verify Docker
         run: |
           docker --version
           docker info
 
+      # Build Docker Image
       - name: Build Docker Image
         run: |
+          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
           docker build \
-            -t go-e2e:${{ github.sha }} \
+            -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
+            -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
             .
 
+      # List Images
       - name: List Docker Images
         run: docker images
 
+      # Inspect Image
       - name: Inspect Docker Image
-        run: docker image inspect go-e2e:${{ github.sha }}
+        run: |
+          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+          docker image inspect ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+      # Push Commit SHA Tag
+      - name: Push SHA Image
+        run: |
+          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+          docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+      # Push Latest Tag
+      - name: Push Latest Image
+        run: |
+          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+          docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
