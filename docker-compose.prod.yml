@@ -1,6 +1,6 @@
 services:
   app:
-    image: 567487919606.dkr.ecr.ap-south-1.amazonaws.com/go-e2e:v1.0.1
+    image: 567487919606.dkr.ecr.ap-south-1.amazonaws.com/go-e2e:v1.0.2
 
     container_name: go-e2e-app
 
@@ -15,7 +15,7 @@ services:
 
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:8080/v1/health"]
-      interval: 30s
+      interval: 3600s
       timeout: 5s
       retries: 3
 
