@@ -64,12 +64,16 @@ jobs:
       - name: Deploy Application
         run: |
           ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-          IMAGE=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+          DEPLOY_IMAGE=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
           ssh -o StrictHostKeyChecking=yes \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
 
             set -e
+
+            export AWS_REGION="${AWS_REGION}"
+            export ECR_REGISTRY="${ECR_REGISTRY}"
+            export IMAGE="${DEPLOY_IMAGE}"
 
             cd ~/go-e2e
 
@@ -77,24 +81,24 @@ jobs:
             git pull origin main
 
             echo "===== Login to ECR ====="
-            aws ecr get-login-password --region ${AWS_REGION} | \
+            aws ecr get-login-password --region \$AWS_REGION | \
               docker login \
               --username AWS \
-              --password-stdin ${ECR_REGISTRY}
+              --password-stdin \$ECR_REGISTRY
 
-            echo "===== Pull Image ====="
-            docker pull ${IMAGE}
+            echo "===== Pull Latest Image ====="
+            docker pull \$IMAGE
 
-            echo "===== Stop Old Container ====="
+            echo "===== Stop Current Container ====="
             docker compose -f docker-compose.prod.yml down
 
             echo "===== Start New Container ====="
-            IMAGE=${IMAGE} docker compose -f docker-compose.prod.yml up -d
+            docker compose -f docker-compose.prod.yml up -d
 
             echo "===== Running Containers ====="
             docker ps
 
-            echo "===== Compose Status ====="
+            echo "===== Docker Compose Status ====="
             docker compose -f docker-compose.prod.yml ps
 
           EOF
