@@ -1,4 +1,4 @@
-name: Hello GitHub Actions
+name: Explore GitHub Runner
 
 on:
   push:
@@ -6,16 +6,74 @@ on:
       - main
 
 jobs:
-  hello:
+  explore-runner:
+    name: Explore GitHub Hosted Runner
     runs-on: ubuntu-latest
 
     steps:
-      - name: Print Hello
-        run: echo "Hello from GitHub Actions!"
-
-      - name: Show System Information
+      # Step 1 - Before checkout
+      - name: Before Checkout
         run: |
+          echo "========== BEFORE CHECKOUT =========="
           pwd
           ls -la
+
+      # Step 2 - Checkout repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 3 - After checkout
+      - name: After Checkout
+        run: |
+          echo "========== AFTER CHECKOUT =========="
+          pwd
+          ls -la
+          echo ""
+          echo "Repository Structure:"
+          find . -maxdepth 2
+
+      # Step 4 - Git Information
+      - name: Show Git Information
+        run: |
+          echo "========== GIT =========="
+          git status
+          echo ""
+          git branch
+          echo ""
+          git log --oneline -5
+
+      # Step 5 - Explore Runner
+      - name: Explore Runner Environment
+        run: |
+          echo "========== SYSTEM =========="
           whoami
-          uname -a
+          hostname
+          pwd
+
+          echo ""
+          echo "========== SOFTWARE =========="
+          go version || true
+          docker --version || true
+          git --version
+          python3 --version || true
+          node --version || true
+          java -version || true
+
+      # Step 6 - GitHub Context Variables
+      - name: GitHub Context
+        run: |
+          echo "========== GITHUB CONTEXT =========="
+          echo "Repository  : ${{ github.repository }}"
+          echo "Branch      : ${{ github.ref_name }}"
+          echo "Commit SHA  : ${{ github.sha }}"
+          echo "Actor       : ${{ github.actor }}"
+          echo "Event       : ${{ github.event_name }}"
+          echo "Workspace   : ${{ github.workspace }}"
+          echo "Run Number  : ${{ github.run_number }}"
+          echo "Run ID      : ${{ github.run_id }}"
+
+      # Step 7 - Environment Variables
+      - name: Show Environment Variables
+        run: |
+          echo "========== ENVIRONMENT VARIABLES =========="
+          printenv | sort
