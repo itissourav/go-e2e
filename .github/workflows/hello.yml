@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout source code
+      # Checkout Repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -32,19 +32,9 @@ jobs:
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
-      # Verify ECR Repository
-      - name: Verify ECR Repository
-        run: aws ecr describe-repositories
-
-      # Login Docker to ECR
+      # Login to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
-
-      # Verify Docker
-      - name: Verify Docker
-        run: |
-          docker --version
-          docker info
 
       # Build Docker Image
       - name: Build Docker Image
@@ -53,26 +43,14 @@ jobs:
 
           docker build \
             -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-            -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
             .
 
-      # Show Docker Images
-      - name: List Docker Images
-        run: docker images
-
-      # Inspect Image
-      - name: Inspect Docker Image
-        run: |
-          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-          docker image inspect ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-
-      # Push Images
-      - name: Push Images to Amazon ECR
+      # Push Docker Image
+      - name: Push Docker Image
         run: |
           ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 
           docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-          docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
 
       # Configure SSH
       - name: Configure SSH
@@ -85,34 +63,43 @@ jobs:
       # Deploy to EC2
       - name: Deploy Application
         run: |
+          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+          IMAGE=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
           ssh -o StrictHostKeyChecking=yes \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
 
             set -e
 
             cd ~/go-e2e
 
-            echo "===== Current Directory ====="
-            pwd
-
             echo "===== Pull Latest Code ====="
             git pull origin main
 
-            echo "===== Pull Latest Docker Image ====="
-            docker compose -f docker-compose.prod.yml pull
+            echo "===== Login to ECR ====="
+            aws ecr get-login-password --region ${AWS_REGION} | \
+              docker login \
+              --username AWS \
+              --password-stdin ${ECR_REGISTRY}
 
-            echo "===== Restart Containers ====="
-            docker compose -f docker-compose.prod.yml up -d
+            echo "===== Pull Image ====="
+            docker pull ${IMAGE}
+
+            echo "===== Stop Old Container ====="
+            docker compose -f docker-compose.prod.yml down
+
+            echo "===== Start New Container ====="
+            IMAGE=${IMAGE} docker compose -f docker-compose.prod.yml up -d
 
             echo "===== Running Containers ====="
             docker ps
 
-            echo "===== Docker Compose Status ====="
+            echo "===== Compose Status ====="
             docker compose -f docker-compose.prod.yml ps
 
           EOF
 
-      # Wait for application startup
+      # Wait for Application
       - name: Wait for Application
         run: sleep 15
 
@@ -121,6 +108,5 @@ jobs:
         run: |
           curl --fail --show-error --silent https://go-e2e-my.abrdns.com/v1/health
 
-      # Deployment Success
       - name: Deployment Successful
         run: echo "Application deployed successfully!"
