@@ -1,8 +1,7 @@
-version: '3.9'
-
 services:
   app:
-    image: go-e2e-app:latest
+    image: 567487919606.dkr.ecr.ap-south-1.amazonaws.com/go-e2e:v1.0.1
+
     container_name: go-e2e-app
 
     ports:
@@ -13,3 +12,15 @@ services:
       AWS_REGION: ap-south-1
 
     restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8080/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    networks:
+      - backend
+
+networks:
+  backend:
