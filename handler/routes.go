@@ -40,6 +40,6 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 
 func (h *Handler) Health(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"status": "Hey, it's up and running",
+		"status": "Hey, it's up and running, Deployed via CI/CD",
 	})
 }
