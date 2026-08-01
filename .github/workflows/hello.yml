@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build, Push and Deploy
 
 on:
   push:
@@ -12,11 +12,11 @@ env:
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  docker-build:
+  docker-build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repository
+      # Checkout source code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -33,15 +33,14 @@ jobs:
         run: aws sts get-caller-identity
 
       # Verify ECR Repository
-      - name: List ECR Repositories
+      - name: Verify ECR Repository
         run: aws ecr describe-repositories
 
-      # Login Docker to Amazon ECR
+      # Login Docker to ECR
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Verify Docker Installation
+      # Verify Docker
       - name: Verify Docker
         run: |
           docker --version
@@ -57,7 +56,7 @@ jobs:
             -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
             .
 
-      # List Images
+      # Show Docker Images
       - name: List Docker Images
         run: docker images
 
@@ -65,42 +64,63 @@ jobs:
       - name: Inspect Docker Image
         run: |
           ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-
           docker image inspect ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
 
-      # Push Commit SHA Tag
-      - name: Push SHA Image
+      # Push Images
+      - name: Push Images to Amazon ECR
         run: |
           ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 
           docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-
-      # Push Latest Tag
-      - name: Push Latest Image
-        run: |
-          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-
           docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
 
-      - name: Install SSH Client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssh-client
-
-      - name: Configure SSH Key
+      # Configure SSH
+      - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-
           chmod 600 ~/.ssh/id_rsa
-
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Test SSH Connection
+      # Deploy to EC2
+      - name: Deploy Application
         run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
-            hostname
-            whoami
+          ssh -o StrictHostKeyChecking=yes \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+
+            set -e
+
+            cd ~/go-e2e
+
+            echo "===== Current Directory ====="
             pwd
-          "
+
+            echo "===== Pull Latest Code ====="
+            git pull origin main
+
+            echo "===== Pull Latest Docker Image ====="
+            docker compose -f docker-compose.prod.yml pull
+
+            echo "===== Restart Containers ====="
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "===== Running Containers ====="
+            docker ps
+
+            echo "===== Docker Compose Status ====="
+            docker compose -f docker-compose.prod.yml ps
+
+          EOF
+
+      # Wait for application startup
+      - name: Wait for Application
+        run: sleep 15
+
+      # Health Check
+      - name: Health Check
+        run: |
+          curl --fail --show-error --silent https://go-e2e-my.abrdns.com/v1/health
+
+      # Deployment Success
+      - name: Deployment Successful
+        run: echo "Application deployed successfully!"
