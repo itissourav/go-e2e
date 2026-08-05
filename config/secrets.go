@@ -19,7 +19,8 @@ type Secrets struct {
 	RefreshTokenExpiryHours string `json:"REFRESH_TOKEN_EXPIRY_HOURS"`
 }
 
-func LoadSecrets() error {
+func LoadSecrets(env string) error {
+	secretId := "go-backend-" + env
 	// Load AWS configuration
 	cfg, err := awsConfig.LoadDefaultConfig(context.Background())
 	if err != nil {
@@ -33,7 +34,7 @@ func LoadSecrets() error {
 	result, err := client.GetSecretValue(
 		context.Background(),
 		&secretsmanager.GetSecretValueInput{
-			SecretId: aws.String("go-backend-prod"),
+			SecretId: aws.String(secretId),
 		},
 	)
 	if err != nil {

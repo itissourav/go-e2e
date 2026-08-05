@@ -13,7 +13,12 @@ func LoadEnv() {
 
 	switch env {
 	case "prod":
-		err := LoadSecrets()
+		err := LoadSecrets("prod")
+		if err != nil {
+			log.Fatalf("failed to load secrets: %v", err)
+		}
+	case "dev":
+		err := LoadSecrets("dev")
 		if err != nil {
 			log.Fatalf("failed to load secrets: %v", err)
 		}
