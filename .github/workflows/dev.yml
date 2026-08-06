@@ -1,8 +1,6 @@
 name: Build, Push and Deploy to Dev
 
 on:
-  workflow_dispatch:
-
   push:
     branches:
       - develop
@@ -48,7 +46,6 @@ jobs:
 
           docker build \
             -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
-            -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest \
             .
 
       # Push Docker Image
@@ -57,13 +54,12 @@ jobs:
           ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 
           docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-          docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest
 
       # Configure SSH
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_DEV_SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_DEV_HOST }} >> ~/.ssh/known_hosts
 
@@ -90,8 +86,8 @@ jobs:
             echo "===== Login to ECR ====="
             aws ecr get-login-password --region \$AWS_REGION | \
               docker login \
-                --username AWS \
-                --password-stdin \$ECR_REGISTRY
+              --username AWS \
+              --password-stdin \$ECR_REGISTRY
 
             echo "===== Pull Latest Image ====="
             docker pull \$IMAGE
