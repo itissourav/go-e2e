@@ -3,6 +3,7 @@ package handler
 import (
 	"go-e2e/controller"
 	"go-e2e/middleware"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,7 +40,14 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 }
 
 func (h *Handler) Health(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"status": "Hey Congrats, it's up and running, Deployed using CI/CD",
-	})
+	env := os.Getenv("APP_ENV")
+	if env == "dev" {
+		c.JSON(200, gin.H{
+			"status": "Hey dev, it's up and running, Deployed using CI/CD",
+		})
+	} else {
+		c.JSON(200, gin.H{
+			"status": "Hey prod, it's up and running, Deployed using CI/CD",
+		})
+	}
 }
