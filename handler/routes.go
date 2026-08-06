@@ -43,7 +43,7 @@ func (h *Handler) Health(c *gin.Context) {
 	env := os.Getenv("APP_ENV")
 	if env == "dev" {
 		c.JSON(200, gin.H{
-			"status": "Hey dev, it's up and running, Deployed using CI/CD",
+			"status": "Hey develop, it's up and running, Deployed using CI/CD",
 		})
 	} else {
 		c.JSON(200, gin.H{

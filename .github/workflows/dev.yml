@@ -1,0 +1,116 @@
+name: Build, Push and Deploy to Dev
+
+on:
+  push:
+    branches:
+      - develop
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  ECR_REPOSITORY: go-e2e-dev
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  docker-build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Configure AWS Credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Verify AWS Identity
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
+      # Login to Amazon ECR
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Build Docker Image
+      - name: Build Docker Image
+        run: |
+          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+          docker build \
+            -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} \
+            .
+
+      # Push Docker Image
+      - name: Push Docker Image
+        run: |
+          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+          docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+      # Configure SSH
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_DEV_HOST }} >> ~/.ssh/known_hosts
+
+      # Deploy to EC2
+      - name: Deploy Application
+        run: |
+          ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+          DEPLOY_IMAGE=${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
+
+          ssh -o StrictHostKeyChecking=yes \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_DEV_HOST }} << EOF
+
+            set -e
+
+            export AWS_REGION="${AWS_REGION}"
+            export ECR_REGISTRY="${ECR_REGISTRY}"
+            export IMAGE="${DEPLOY_IMAGE}"
+
+            cd ~/go-e2e
+
+            echo "===== Pull Latest Code ====="
+            git pull origin develop
+
+            echo "===== Login to ECR ====="
+            aws ecr get-login-password --region \$AWS_REGION | \
+              docker login \
+              --username AWS \
+              --password-stdin \$ECR_REGISTRY
+
+            echo "===== Pull Latest Image ====="
+            docker pull \$IMAGE
+
+            echo "===== Stop Current Container ====="
+            docker compose -f docker-compose.dev.yml down
+
+            echo "===== Start New Container ====="
+            docker compose -f docker-compose.dev.yml up -d
+
+            echo "===== Running Containers ====="
+            docker ps
+
+            echo "===== Docker Compose Status ====="
+            docker compose -f docker-compose.dev.yml ps
+
+          EOF
+
+      # Wait for Application
+      - name: Wait for Application
+        run: sleep 15
+
+      # Health Check
+      - name: Health Check
+        run: |
+          curl --fail --show-error --silent http://13.126.30.103/v1/health
+
+      - name: Deployment Successful
+        run: echo "Application deployed successfully!"
