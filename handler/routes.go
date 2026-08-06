@@ -47,7 +47,7 @@ func (h *Handler) Health(c *gin.Context) {
 		})
 	} else {
 		c.JSON(200, gin.H{
-			"status": "Hey prod4, it's up and running, Deployed using CI/CD",
+			"status": "Hey prod4,   it's up and running, Deployed using CI/CD",
 		})
 	}
 }
