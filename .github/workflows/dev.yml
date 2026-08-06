@@ -5,6 +5,9 @@ on:
     branches:
       - develop
 
+permissions:
+  contents: read
+
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
@@ -89,8 +92,11 @@ jobs:
             echo "===== Pull Latest Image ====="
             docker pull \$IMAGE
 
-            echo "===== Stop Current Container ====="
-            docker compose -f docker-compose.dev.yml down
+            echo "===== Stop Existing Container ====="
+            docker compose -f docker-compose.dev.yml down || true
+
+            echo "===== Remove Old Images ====="
+            docker image prune -f
 
             echo "===== Start New Container ====="
             docker compose -f docker-compose.dev.yml up -d
